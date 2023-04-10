@@ -2,169 +2,268 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define SIZE 100
-#define RED "\e[1;31m"
-#define CLOSE "\e[0m"
+#include <math.h>
 
-struct point {
+#define RED_FLASH "\e[5;31m"
+#define END "\e[0m"
+#define MAX 100
+
+struct Dot {
     double x;
     double y;
 };
 
-struct circle {
-    struct point center;
+struct Circle {
+    struct Dot center;
     double radius;
 };
-
+// Изменены названия 
 enum ERROR {
     ERROR_NAME,
-    ERROR_BRACKET,
+    ERROR_STAPLES,
     ERROR_NUMBER,
-    ERROR_UNEXPECT_TOKEN,
+    ERROR_UNIDENTIFIED_VARIABLES,
     ERROR_EXPECT_COMMA,
+    ERROR_STAPLES_2,
+    ERROR_EXTRA_POINT,
 };
 
-void show_error(int ERROR, int num, char* ch)
+void output_bugs(int errors, int num, char* ch)
 {
     for (int i = 0; i < num; i++) {
         putchar(' ');
     }
     printf("^\n");
 
-    switch (ERROR) {
+    switch (errors) {
     case ERROR_NAME:
-        printf("Ошибка в ожидаемом %d: столбце %s'круг'%s\n", num, RED, CLOSE);
+        printf("An error %d was found in the input line %s'Circle'%s\n",
+               num,
+               RED_FLASH,
+               END);
         break;
-    case ERROR_BRACKET:
+    case ERROR_STAPLES:
         if (*ch == ')') {
-            printf("Error at column %d: expected %s'('%s\n", num, RED, CLOSE);
-            break;
-        } else if (*ch == '(') {
-            printf("Error at column %d: expected %s')'%s\n", num, RED, CLOSE);
-            break;
-        } else if (*ch == ' ' && num < 10) {
-            printf("Error at column %d: expected %s'('%s\n", num, RED, CLOSE);
+            printf("An error %d was found in the input line %s')'%s\n",
+                   num,
+                   RED_FLASH,
+                   END);
             break;
         } else {
-            printf("Error at column %d: expected %s')'%s\n", num, RED, CLOSE);
+            printf("An error %d was found in the input line %s'('%s\n",num,RED_FLASH,END);
             break;
         }
-    case ERROR_NUMBER:
-        printf("Error at column %d: expected %s'<double>'%s\n", num, RED, CLOSE);
+    case ERROR_STAPLES_2:
+    	printf("An error %d was found in the input line %s')'%s\n",num,RED_FLASH,END);
         break;
-    case ERROR_UNEXPECT_TOKEN:
-        printf("Error at column %d: unexpected token\n", num);
+    case ERROR_NUMBER:
+        printf("An error %d was found in the input line %s'double'%s\n",num,RED_FLASH,END);
+        break;
+    case ERROR_UNIDENTIFIED_VARIABLES:
+        printf("An error %d was found in the input line %s'variable'%s\n",num,RED_FLASH,END);
         break;
     case ERROR_EXPECT_COMMA:
-        printf("Error at column %d: expected %s','%s\n", num, RED, CLOSE);
+        printf("An error %d was found in the input line %s','%s\n",num,RED_FLASH,END);
+        break;
+    case ERROR_EXTRA_POINT:
+    	printf("An error %d was found in the input line %s'.'%s\n",num,RED_FLASH,END);
         break;
     }
 }
 
-void to_lower(char* arr, int num)
+void to_lower(char* str, int ch)
 {
-    for (int i = 0; i < num; i++) {
-        arr[i] = tolower(arr[i]);
+    for (int i = 0; i < ch; i++) {
+        str[i] = tolower(str[i]);
     }
 }
 
-void skip_space(char* arr, int* num, char ch)
+double x_data(char* arr, int* num)
 {
-    while (arr[*num] != ch) {
-        if (arr[*num] == ' ') {
-            *num += 1;
-        } else if ((ch == '0') && (isdigit(arr[*num]) || arr[*num] == '-' || arr[*num] == '.')){
-            break;
-        } else if (ch == ','){
-            show_error(ERROR_EXPECT_COMMA, *num, NULL);
-            exit(EXIT_FAILURE);
-        } else if (ch == ')'){
-            show_error(ERROR_BRACKET, *num, &arr[*num]);
-            exit(EXIT_FAILURE);
-        } else if (ch == '\n'){
-            show_error(ERROR_UNEXPECT_TOKEN, *num, NULL);
-            exit(EXIT_FAILURE);
-        }
-    }
-}
-
-double number_search(char* arr, int* num)
-{
-    char* exp = malloc(20 * sizeof(char));
+    char free_space[20];
     int i = 0;
-    
-    while (isdigit(arr[*num]) || arr[*num] == '-' || arr[*num] == '.') {
-        if (arr[*num] == '.' && arr[*(num + 1)] == '.') {
-            show_error(ERROR_NUMBER, *num, NULL);
-            exit(EXIT_FAILURE);
+
+    while (!isdigit(arr[*num]) && arr[*num] != '-') {
+        if (arr[*num] == '(') {
+            *num += 1;
+        } else {
+            if (arr[*num] == ')') {
+                output_bugs(ERROR_STAPLES, *num, &arr[*num]);
+                exit(1);
+            }
+            if (arr[*num] == ' '){
+            	output_bugs(ERROR_STAPLES, *num, &arr[*num]);
+                exit(1);            
+            } else {
+                output_bugs(ERROR_NUMBER, *num, NULL);
+                exit(1);
+            }
         }
-        exp[i] = arr[*num];
+    }
+
+    while (isdigit(arr[*num]) || arr[*num] == '-' || arr[*num] == '.') {
+        free_space[i] = arr[*num];
         i++;
         *num += 1;
     }
     
-    char* trash;
-    double Number = strtod(exp, &trash);
-    free(exp);
-    return Number;
+    if (arr[*num] != ' ') {
+        output_bugs(ERROR_UNIDENTIFIED_VARIABLES, *num, NULL);
+        exit(1);
+    }
+    char* dumpster;
+    return strtod(free_space, &dumpster);
 }
 
-struct circle data_of_figure(char* arr, int* num)
+double y_data(char* arr, int* num)
 {
-    struct circle Circle;
+    char free_space[20];
+    int i = 0;
 
-    *num += 1;
-    skip_space(arr, num, '0');
-    Circle.center.x = number_search(arr, num);
+    while (!isdigit(arr[*num]) && arr[*num] != '-') {
+        if (arr[*num] == ' ') {
+            *num += 1;
+        } else {
+            output_bugs(ERROR_NUMBER, *num, NULL);
+            exit(1);
+        }
+    }
 
-    skip_space(arr, num, '0');
-    Circle.center.y = number_search(arr, num);
-    skip_space(arr, num, ',');
-    *num += 1;
+    while (isdigit(arr[*num]) || arr[*num] == '-' || arr[*num] == '.') {
+        free_space[i] = arr[*num];
+        i++;
+        *num += 1;
+    }
 
-    skip_space(arr, num, '0');
-    Circle.radius = number_search(arr, num);
-    skip_space(arr, num, ')');
-    *num += 1;
-    skip_space(arr, num, '\n');
-
-    return Circle;
+    while (arr[*num] != ',') {
+        if (arr[*num] == ' ') {
+            *num += 1;
+        } else {
+            output_bugs(ERROR_EXPECT_COMMA, *num, NULL);
+            exit(1);
+        }
+    }
+    char* dumpster;
+    return strtod(free_space, &dumpster);
 }
 
-void show_figure(struct circle* Circle, char* figure)
+double radius_data(char* arr, int* num)
 {
-    printf("\n%s(%.2f %.2f, %.2f)\n", 
-        figure,
-        Circle->center.x,
-        Circle->center.y,
-        Circle->radius);
+    char free_space[20];
+    int i = 0;
+    int extra_point_count = 0;
+
+    while (!isdigit(arr[*num])) {
+        if (arr[*num] == ' ' || arr[*num] == ',') {
+            *num += 1;
+        } else {
+            output_bugs(ERROR_NUMBER, *num, NULL);
+            exit(1);
+        }
+    }
+
+    while (isdigit(arr[*num]) || arr[*num] == '.') {
+        free_space[i] = arr[*num];
+        i++;
+        *num += 1;
+        if (arr[*num] == '.'){
+            extra_point_count += 1;
+        }
+        if (extra_point_count >= 2){
+            output_bugs(ERROR_EXTRA_POINT, *num, &arr[*num]);
+            exit(1);
+        }
+    }
+
+    while (arr[*num] != ')') {
+        if (arr[*num] == ' ') {
+            *num += 1;
+        } else {
+            if (arr[*num] == '(') {
+                output_bugs(ERROR_STAPLES, *num, &arr[*num]);
+                exit(1);
+            } else {
+                output_bugs(ERROR_STAPLES_2, *num, &arr[*num]);
+                exit(1);
+            }
+        }
+    }
+    char* dumpster;
+    return strtod(free_space, &dumpster);
+}
+
+void empty(char* arr, int* num)
+{
+    *num += 1;
+    while (arr[*num] != '\n' && arr[*num] != EOF) {
+        if (arr[*num] == ' ') {
+            *num += 1;
+        } else {
+            output_bugs(ERROR_UNIDENTIFIED_VARIABLES, *num, NULL);
+            exit(1);
+        }
+    }
+}
+
+struct Dot find_center(char* arr, int* num)
+{
+    struct Dot Center;
+
+    Center.x = x_data(arr, num);
+    Center.y = y_data(arr, num);
+
+    return Center;
+}
+
+struct Circle find_out_circle(struct Dot* Center, char* arr, int* num)
+{
+    struct Circle circle;
+
+    circle.center.x = Center->x;
+    circle.center.y = Center->y;
+    circle.radius = radius_data(arr, num);
+
+    return circle;
+}
+
+void output_circle_message(struct Circle* circle)
+{
+    printf("\ncircle(%.2f %.2f, %.2f)\n",
+           circle->center.x,
+           circle->center.y,
+           circle->radius);
+    printf("perimeter: %.4f\n", (2 * M_PI * circle->radius));
+    printf("area: %.4f\n", ((circle->radius * circle->radius) * M_PI));
 }
 
 int main()
 {
-    char enter[SIZE], figure[SIZE];
+    char enter[MAX], shape[MAX];
     int num = 0;
 
-    printf("Введите геометрическую фигуру (или нажмите ENTER для выхода):\n");
-    fgets(enter, SIZE, stdin);
-    
+    printf("Enter the name and coordinates of the shape (or press Enter for "
+           "exit):\n");
+    fgets(enter, MAX, stdin);
+
     for (int i = 0; i < strlen(enter); i++) {
-        if (enter[i] == '(') {
-            to_lower(figure, num);
-            if (strcmp(figure, "circle") == 0) {
-                struct circle Circle = data_of_figure(enter, &num);
-                show_figure(&Circle, figure);
+        if (enter[i] == '(' || enter[i] == ' ') {
+            to_lower(shape, num);
+            if (strcmp(shape, "circle") == 0) {
+                struct Dot center = find_center(enter, &num);
+                struct Circle circle = find_out_circle(&center, enter, &num);
+                empty(enter, &num);
+                output_circle_message(&circle);
                 break;
             } else {
-                show_error(ERROR_NAME, 0, NULL);
-                exit(EXIT_FAILURE);
+                output_bugs(ERROR_NAME, 0, NULL);
+                exit(1);
             }
-        } else if (enter[i] == ')' || enter[i] == ' '){
-            show_error(ERROR_BRACKET, num, &enter[i]);
-            exit(EXIT_FAILURE);
+        } else if (enter[i] == ')') {
+            output_bugs(ERROR_STAPLES, num, &enter[i]);
+            exit(1);
         }
 
-        figure[num] = enter[i];
+        shape[num] = enter[i];
         num++;
     }
 
